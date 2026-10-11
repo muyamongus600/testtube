@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Creator Dashboard · SFMGTube</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #202020;
+            --panel: #2a2a2a;
+            --panel-2: #323232;
+            --line: #3d3d3d;
+            --text: #f4f4f4;
+            --muted: #9a9a9a;
+            --accent: #ff4e45;
+            --up: #3ecf8e;
+            --down: #ff6b6b;
+            --radius: 10px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            font-size: 15px;
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 0 20px;
+            height: 56px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--line);
+        }
+
+        nav a { color: var(--text); text-decoration: none; }
+        nav .brand { font-size: 20px; font-weight: 700; }
+        nav .crumb { color: var(--muted); }
+
+        main { max-width: 1240px; margin: 0 auto; padding: 24px 20px 60px; }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .channel-head { display: flex; align-items: center; gap: 14px; margin-right: auto; }
+
+        .avatar {
+            width: 56px; height: 56px; border-radius: 50%;
+            background: var(--panel-2) center/cover no-repeat;
+            display: grid; place-items: center;
+            font-weight: 700; font-size: 22px; color: var(--muted);
+        }
+
+        .channel-head h1 { margin: 0; font-size: 26px; font-weight: 800; }
+        .channel-head .handle { color: var(--muted); font-size: 14px; }
+        .verified { color: var(--muted); font-size: 18px; margin-left: 4px; }
+
+        select, input, button {
+            font: inherit;
+            color: var(--text);
+            background: var(--bg);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 8px 12px;
+        }
+
+        button { cursor: pointer; background: var(--panel-2); }
+        button:hover { border-color: #666; }
+        button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+        button.primary:hover { filter: brightness(1.1); }
+        button:disabled { opacity: .5; cursor: default; }
+
+        .kpis {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 18px;
+        }
+
+        .kpi .label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
+        .kpi .value { font-size: 30px; font-weight: 800; margin: 6px 0 4px; font-variant-numeric: tabular-nums; }
+        .kpi .delta { font-size: 13px; color: var(--muted); }
+        .delta.up { color: var(--up); }
+        .delta.down { color: var(--down); }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+        .card h2 { margin: 0; font-size: 16px; font-weight: 700; }
+        .card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+
+        .segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+        .segmented button { border: 0; border-radius: 0; background: transparent; padding: 5px 10px; font-size: 13px; color: var(--muted); }
+        .segmented button.active { background: var(--panel-2); color: var(--text); }
+
+        .chart-box { position: relative; height: 280px; }
+
+        table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+        th, td { padding: 10px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+        th:first-child, td:first-child { text-align: left; white-space: normal; }
+        th { color: var(--muted); font-weight: 600; font-size: 13px; cursor: pointer; user-select: none; }
+        th.sorted::after { content: " ↓"; }
+        tbody tr:hover { background: var(--panel-2); }
+        .type-pill { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 99px; background: var(--panel-2); color: var(--muted); margin-left: 6px; }
+        .bar { display: inline-block; height: 6px; border-radius: 3px; background: var(--accent); vertical-align: middle; margin-right: 6px; }
+
+        .empty { text-align: center; padding: 80px 20px; }
+        .empty h1 { font-size: 28px; margin-bottom: 8px; }
+        .empty p { color: var(--muted); margin-bottom: 24px; }
+        .empty .actions { display: flex; gap: 12px; justify-content: center; }
+
+        .muted { color: var(--muted); }
+        .hidden { display: none !important; }
+
+        dialog {
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 22px;
+            width: min(440px, 92vw);
+        }
+
+        dialog::backdrop { background: rgba(0, 0, 0, .6); }
+        dialog h2 { margin: 0 0 16px; font-size: 18px; }
+        dialog form { display: grid; gap: 12px; }
+        dialog label { display: grid; gap: 5px; font-size: 13px; color: var(--muted); }
+        dialog .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        dialog .check { display: flex; align-items: center; gap: 8px; }
+        dialog .check input { width: auto; }
+        dialog .buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+        .error { color: var(--down); font-size: 13px; min-height: 1em; }
+
+        #toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+            padding: 10px 16px; opacity: 0; transition: opacity .2s; pointer-events: none;
+        }
+
+        #toast.show { opacity: 1; }
+    </style>
+</head>
+
+<body>
+    <nav>
+        <a href="/" class="brand">SFMGTube</a>
+        <span class="crumb">/ Creator Dashboard</span>
+    </nav>
+
+    <main>
+        <p id="loading" class="muted">Loading dashboard…</p>
+
+        <section id="empty" class="empty hidden">
+            <h1>No channels yet</h1>
+            <p>Add your first channel to start tracking subscribers, views and uploads.</p>
+            <div class="actions">
+                <button class="primary" data-open="channelDialog">Add a channel</button>
+                <button id="seedBtn">Load demo data</button>
+            </div>
+        </section>
+
+        <section id="dashboard" class="hidden">
+            <div class="toolbar">
+                <div class="channel-head">
+                    <div class="avatar" id="avatar"></div>
+                    <div>
+                        <h1><span id="channelName"></span><span id="verified" class="verified hidden" title="Verified">✔</span></h1>
+                        <div class="handle" id="channelHandle"></div>
+                    </div>
+                </div>
+                <select id="channelSelect" aria-label="Channel"></select>
+                <button data-open="snapshotDialog">Log stats</button>
+                <button data-open="uploadDialog">Add upload</button>
+                <button class="primary" data-open="channelDialog">New channel</button>
+            </div>
+
+            <div class="kpis">
+                <div class="card kpi">
+                    <div class="label">Subscribers</div>
+                    <div class="value" id="kpiSubs">–</div>
+                    <div class="delta" id="kpiSubsDelta"></div>
+                </div>
+                <div class="card kpi">
+                    <div class="label">Upload views</div>
+                    <div class="value" id="kpiViews">–</div>
+                    <div class="delta" id="kpiViewsSub"></div>
+                </div>
+                <div class="card kpi">
+                    <div class="label">Like ratio</div>
+                    <div class="value" id="kpiRatio">–</div>
+                    <div class="delta" id="kpiRatioSub"></div>
+                </div>
+                <div class="card kpi">
+                    <div class="label">Avg watch time</div>
+                    <div class="value" id="kpiWatch">–</div>
+                    <div class="delta">Across all uploads</div>
+                </div>
+                <div class="card kpi">
+                    <div class="label">Uploads</div>
+                    <div class="value" id="kpiUploads">–</div>
+                    <div class="delta" id="kpiUploadsSub"></div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-head">
+                        <h2>Subscriber growth</h2>
+                        <div class="segmented" id="rangeButtons">
+                            <button data-range="7">7D</button>
+                            <button data-range="30" class="active">30D</button>
+                            <button data-range="0">All</button>
+                        </div>
+                    </div>
+                    <div class="chart-box"><canvas id="growthChart"></canvas></div>
+                    <p id="growthEmpty" class="muted hidden">No stats logged yet. Use “Log stats” to record subscriber counts over time.</p>
+                </div>
+                <div class="card">
+                    <div class="card-head"><h2>Views by upload type</h2></div>
+                    <div class="chart-box"><canvas id="typeChart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <h2>Uploads</h2>
+                    <span class="muted" id="uploadCount"></span>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-sort="title">Title</th>
+                                <th data-sort="views" class="sorted">Views</th>
+                                <th data-sort="likes">Likes</th>
+                                <th data-sort="ratio">Like ratio</th>
+                                <th data-sort="comments">Comments</th>
+                                <th data-sort="avgWatchTime">Watch time</th>
+                                <th data-sort="postedAt">Posted</th>
+                            </tr>
+                        </thead>
+                        <tbody id="uploadRows"></tbody>
+                    </table>
+                </div>
+                <p id="uploadsEmpty" class="muted hidden">No uploads yet. Use “Add upload” to track a video.</p>
+            </div>
+        </section>
+    </main>
+
+    <dialog id="channelDialog">
+        <h2>New channel</h2>
+        <form data-endpoint="/api/channels">
+            <label>Channel name <input name="name" required maxlength="100"></label>
+            <label>Handle <input name="handle" required maxlength="60" pattern="@?[A-Za-z0-9_.\-]+" placeholder="@yourchannel"></label>
+            <label>Avatar image URL <input name="image" type="url" placeholder="https://…"></label>
+            <div class="row">
+                <label>Current subscribers <input name="subscribers" type="number" min="0"></label>
+                <label>Total views <input name="views" type="number" min="0"></label>
+            </div>
+            <label class="check"><input name="verified" type="checkbox"> Verified</label>
+            <div class="error"></div>
+            <div class="buttons"><button type="button" data-close>Cancel</button><button class="primary">Create</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="snapshotDialog">
+        <h2>Log channel stats</h2>
+        <form data-endpoint="snapshots">
+            <div class="row">
+                <label>Subscribers <input name="subscribers" type="number" min="0" required></label>
+                <label>Total views <input name="views" type="number" min="0"></label>
+            </div>
+            <div class="error"></div>
+            <div class="buttons"><button type="button" data-close>Cancel</button><button class="primary">Save</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="uploadDialog">
+        <h2>Add upload</h2>
+        <form data-endpoint="uploads">
+            <label>Title <input name="title" required maxlength="200"></label>
+            <div class="row">
+                <label>Type
+                    <select name="type">
+                        <option>Video</option><option>Short</option><option>Stream</option><option>Song</option><option>Podcast</option>
+                    </select>
+                </label>
+                <label>Posted <input name="postedAt" type="date"></label>
+            </div>
+            <div class="row">
+                <label>Views <input name="views" type="number" min="0"></label>
+                <label>Likes <input name="likes" type="number" min="0"></label>
+            </div>
+            <div class="row">
+                <label>Dislikes <input name="dislikes" type="number" min="0"></label>
+                <label>Comments <input name="comments" type="number" min="0"></label>
+            </div>
+            <label>Avg watch time (%) <input name="avgWatchTime" type="number" min="0" max="100"></label>
+            <div class="error"></div>
+            <div class="buttons"><button type="button" data-close>Cancel</button><button class="primary">Add</button></div>
+        </form>
+    </dialog>
+
+    <div id="toast"></div>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const fmt = new Intl.NumberFormat();
+        const compact = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
+        const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        const DAY = 864e5;
+
+        let channels = [];
+        let current = null;
+        let range = 30;
+        let sortKey = "views";
+        let growthChart, typeChart;
+
+        Chart.defaults.color = "#9a9a9a";
+        Chart.defaults.borderColor = "#3d3d3d";
+        Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+
+        async function api(path, options = {}) {
+            const headers = { "Content-Type": "application/json" };
+            const key = localStorage.getItem("dashboardAdminKey");
+            if (key) headers["x-admin-key"] = key;
+            const res = await fetch(path, { ...options, headers });
+            const data = await res.json().catch(() => ({}));
+            if (res.status === 401 && options.method && options.method !== "GET") {
+                const entered = prompt("This dashboard is protected. Enter the admin key:");
+                if (entered) {
+                    localStorage.setItem("dashboardAdminKey", entered);
+                    return api(path, options);
+                }
+            }
+            if (!res.ok) throw new Error(data.error || "Request failed");
+            return data;
+        }
+
+        function toast(msg) {
+            const t = $("toast");
+            t.textContent = msg;
+            t.classList.add("show");
+            clearTimeout(t._timer);
+            t._timer = setTimeout(() => t.classList.remove("show"), 2200);
+        }
+
+        function timeAgo(date) {
+            const s = (Date.now() - new Date(date)) / 1000;
+            const units = [[31536000, "year"], [2592000, "month"], [86400, "day"], [3600, "hour"], [60, "minute"]];
+            for (const [size, name] of units) {
+                const n = Math.floor(s / size);
+                if (n >= 1) return `${n} ${name}${n > 1 ? "s" : ""} ago`;
+            }
+            return "just now";
+        }
+
+        async function loadChannels(selectId) {
+            channels = await api("/api/channels");
+            $("loading").classList.add("hidden");
+            if (!channels.length) {
+                $("empty").classList.remove("hidden");
+                $("dashboard").classList.add("hidden");
+                return;
+            }
+            $("empty").classList.add("hidden");
+            $("dashboard").classList.remove("hidden");
+            $("channelSelect").innerHTML = channels
+                .map((c) => `<option value="${c.id}">${esc(c.name)} · ${compact.format(c.subscribers)}</option>`)
+                .join("");
+            const fromUrl = Number(new URLSearchParams(location.search).get("channel"));
+            const id = selectId || (channels.some((c) => c.id === fromUrl) ? fromUrl : channels[0].id);
+            $("channelSelect").value = id;
+            await loadChannel(id);
+        }
+
+        async function loadChannel(id) {
+            current = await api(`/api/channels/${id}`);
+            const url = new URL(location);
+            url.searchParams.set("channel", id);
+            history.replaceState(null, "", url);
+            render();
+        }
+
+        function render() {
+            const { channel, uploads, history } = current;
+
+            $("channelName").textContent = channel.name;
+            $("channelHandle").textContent = "@" + channel.handle;
+            $("verified").classList.toggle("hidden", !channel.verified);
+            const avatar = $("avatar");
+            avatar.style.backgroundImage = channel.image ? `url("${encodeURI(channel.image)}")` : "";
+            avatar.textContent = channel.image ? "" : channel.name.charAt(0).toUpperCase();
+
+            renderKpis(uploads, history);
+            renderGrowth(history);
+            renderTypes(uploads);
+            renderTable(uploads);
+        }
+
+        function setDelta(el, diff, suffix) {
+            el.className = "delta" + (diff > 0 ? " up" : diff < 0 ? " down" : "");
+            el.textContent = `${diff > 0 ? "▲ +" : diff < 0 ? "▼ " : ""}${fmt.format(diff)} ${suffix}`;
+        }
+
+        function renderKpis(uploads, history) {
+            const latest = history.at(-1);
+            $("kpiSubs").textContent = latest ? fmt.format(latest.subscribers) : "–";
+            const cutoff = Date.now() - 30 * DAY;
+            const base = history.find((h) => new Date(h.recordedAt) >= cutoff);
+            if (latest && base && base !== latest) setDelta($("kpiSubsDelta"), latest.subscribers - base.subscribers, "last 30 days");
+            else { $("kpiSubsDelta").className = "delta"; $("kpiSubsDelta").textContent = latest ? `Updated ${timeAgo(latest.recordedAt)}` : "No stats logged"; }
+
+            const sum = (k) => uploads.reduce((a, u) => a + u[k], 0);
+            const views = sum("views"), likes = sum("likes"), dislikes = sum("dislikes"), comments = sum("comments");
+            $("kpiViews").textContent = compact.format(views);
+            $("kpiViewsSub").textContent = uploads.length ? `${compact.format(Math.round(views / uploads.length))} avg per upload` : "No uploads yet";
+
+            const votes = likes + dislikes;
+            $("kpiRatio").textContent = votes ? (likes / votes * 100).toFixed(1) + "%" : "–";
+            $("kpiRatioSub").textContent = `${compact.format(likes)} likes · ${compact.format(comments)} comments`;
+
+            $("kpiWatch").textContent = uploads.length ? Math.round(sum("avgWatchTime") / uploads.length) + "%" : "–";
+
+            $("kpiUploads").textContent = fmt.format(uploads.length);
+            const recent = uploads.filter((u) => new Date(u.postedAt) >= cutoff).length;
+            $("kpiUploadsSub").textContent = `${recent} in the last 30 days`;
+        }
+
+        function renderGrowth(history) {
+            const from = range ? Date.now() - range * DAY : 0;
+            const points = history.filter((h) => new Date(h.recordedAt) >= from);
+            $("growthEmpty").classList.toggle("hidden", history.length > 0);
+            $("growthChart").parentElement.classList.toggle("hidden", history.length === 0);
+
+            const data = {
+                labels: points.map((p) => new Date(p.recordedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })),
+                datasets: [{
+                    label: "Subscribers",
+                    data: points.map((p) => p.subscribers),
+                    borderColor: "#ff4e45",
+                    backgroundColor: "rgba(255, 78, 69, 0.15)",
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: points.length > 40 ? 0 : 3,
+                    pointHoverRadius: 5,
+                    borderWidth: 2,
+                }],
+            };
+
+            if (growthChart) { growthChart.data = data; growthChart.update(); return; }
+            growthChart = new Chart($("growthChart"), {
+                type: "line",
+                data,
+                options: {
+                    maintainAspectRatio: false,
+                    interaction: { mode: "index", intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: (ctx) => ` ${fmt.format(ctx.parsed.y)} subscribers` } },
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } },
+                        y: { ticks: { callback: (v) => compact.format(v) } },
+                    },
+                },
+            });
+        }
+
+        function renderTypes(uploads) {
+            const totals = {};
+            for (const u of uploads) totals[u.type] = (totals[u.type] || 0) + u.views;
+            const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+            const data = {
+                labels: entries.map((e) => e[0]),
+                datasets: [{ data: entries.map((e) => e[1]), backgroundColor: "#ff4e45", borderRadius: 4, barThickness: 22 }],
+            };
+            if (typeChart) { typeChart.data = data; typeChart.update(); return; }
+            typeChart = new Chart($("typeChart"), {
+                type: "bar",
+                data,
+                options: {
+                    indexAxis: "y",
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: (ctx) => ` ${fmt.format(ctx.parsed.x)} views` } },
+                    },
+                    scales: {
+                        x: { ticks: { callback: (v) => compact.format(v) } },
+                        y: { grid: { display: false } },
+                    },
+                },
+            });
+        }
+
+        function renderTable(uploads) {
+            const ratio = (u) => (u.likes + u.dislikes ? u.likes / (u.likes + u.dislikes) : 0);
+            const rows = [...uploads].sort((a, b) => {
+                if (sortKey === "title") return a.title.localeCompare(b.title);
+                if (sortKey === "ratio") return ratio(b) - ratio(a);
+                if (sortKey === "postedAt") return new Date(b.postedAt) - new Date(a.postedAt);
+                return b[sortKey] - a[sortKey];
+            });
+            const maxViews = Math.max(1, ...uploads.map((u) => u.views));
+
+            document.querySelectorAll("th[data-sort]").forEach((th) => th.classList.toggle("sorted", th.dataset.sort === sortKey));
+            $("uploadCount").textContent = uploads.length ? `${uploads.length} total` : "";
+            $("uploadsEmpty").classList.toggle("hidden", uploads.length > 0);
+            $("uploadRows").innerHTML = rows.map((u) => `
+                <tr>
+                    <td>${esc(u.title)}<span class="type-pill">${esc(u.type)}</span></td>
+                    <td><span class="bar" style="width:${Math.round(u.views / maxViews * 60)}px"></span>${fmt.format(u.views)}</td>
+                    <td>${fmt.format(u.likes)}</td>
+                    <td>${u.likes + u.dislikes ? (ratio(u) * 100).toFixed(1) + "%" : "–"}</td>
+                    <td>${fmt.format(u.comments)}</td>
+                    <td>${u.avgWatchTime}%</td>
+                    <td title="${esc(new Date(u.postedAt).toLocaleString())}">${timeAgo(u.postedAt)}</td>
+                </tr>`).join("");
+        }
+
+        // Events
+        $("channelSelect").addEventListener("change", (e) => loadChannel(e.target.value));
+
+        $("rangeButtons").addEventListener("click", (e) => {
+            const btn = e.target.closest("button");
+            if (!btn) return;
+            range = Number(btn.dataset.range);
+            $("rangeButtons").querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
+            renderGrowth(current.history);
+        });
+
+        document.querySelectorAll("th[data-sort]").forEach((th) =>
+            th.addEventListener("click", () => { sortKey = th.dataset.sort; renderTable(current.uploads); }));
+
+        document.querySelectorAll("[data-open]").forEach((btn) =>
+            btn.addEventListener("click", () => {
+                const dialog = $(btn.dataset.open);
+                dialog.querySelector("form").reset();
+                dialog.querySelector(".error").textContent = "";
+                dialog.showModal();
+            }));
+
+        document.querySelectorAll("[data-close]").forEach((btn) =>
+            btn.addEventListener("click", () => btn.closest("dialog").close()));
+
+        document.querySelectorAll("dialog form").forEach((form) =>
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const submit = form.querySelector("button.primary");
+                const body = {};
+                for (const el of form.elements) {
+                    if (!el.name) continue;
+                    body[el.name] = el.type === "checkbox" ? el.checked : el.value;
+                }
+                const isChannel = form.dataset.endpoint.startsWith("/");
+                const path = isChannel ? form.dataset.endpoint : `/api/channels/${current.channel.id}/${form.dataset.endpoint}`;
+                submit.disabled = true;
+                try {
+                    const created = await api(path, { method: "POST", body: JSON.stringify(body) });
+                    form.closest("dialog").close();
+                    if (isChannel) {
+                        toast("Channel created");
+                        await loadChannels(created.id);
+                    } else {
+                        toast("Saved");
+                        await loadChannels(current.channel.id);
+                    }
+                } catch (err) {
+                    form.querySelector(".error").textContent = err.message;
+                } finally {
+                    submit.disabled = false;
+                }
+            }));
+
+        $("seedBtn").addEventListener("click", async () => {
+            $("seedBtn").disabled = true;
+            try {
+                await api("/api/seed", { method: "POST" });
+                toast("Demo data loaded");
+                await loadChannels();
+            } catch (err) {
+                toast(err.message);
+            } finally {
+                $("seedBtn").disabled = false;
+            }
+        });
+
+        loadChannels().catch((err) => {
+            $("loading").textContent = "Couldn't load the dashboard: " + err.message;
+        });
+    </script>
+</body>
+
+</html>
